@@ -1,0 +1,36 @@
+# ===================== 构建产物 =====================
+backend/target/
+frontend/dist/
+*.class
+*.war
+*.jar
+
+# ===================== 依赖 =====================
+frontend/node_modules/
+node_modules/
+
+# ===================== 运行期上传文件（保留 seed 占位图） =====================
+backend/uploads/avatar/
+backend/uploads/item/
+backend/uploads/review/
+!backend/uploads/seed/
+
+# ===================== 本地配置与凭据 =====================
+# 数据库密码 / AI Key 的本地覆盖文件，绝不入库
+.env.bat
+.env.local
+.env.*.local
+*.log
+logs/
+
+# ===================== IDE =====================
+.idea/
+*.iml
+.vscode/
+*.ipr
+*.iws
+
+# ===================== 系统 =====================
+.DS_Store
+Thumbs.db
+desktop.ini

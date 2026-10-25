@@ -1,0 +1,196 @@
+/* ============================================================================
+ * 全局样式：reset + 1200px 定宽容器 + 视觉规范 + Element Plus 微调
+ * 视觉：主色 #0FA968 / 价格 #FF4D2E / 页面底 #F6F7F9 / 卡片白 + 0.5px 描边
+ * 说明：仅 PC 端，不做移动端适配（PRD 1.2、N09）
+ * ========================================================================== */
+
+:root {
+  --brix-primary: #0fa968;
+  --brix-primary-light: #e8f7f0;
+  --brix-price: #ff4d2e;
+  --brix-bg: #f6f7f9;
+  --brix-border: rgba(0, 0, 0, 0.06);
+  --brix-text: #1f2329;
+  --brix-text-secondary: #646a73;
+  --brix-text-placeholder: #8f959e;
+  --brix-radius: 10px;
+  --brix-container: 1200px;
+  --el-color-primary: #0fa968;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  min-width: 1280px;
+  background-color: var(--brix-bg);
+  color: var(--brix-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+h1,
+h2,
+h3,
+h4,
+p {
+  margin: 0;
+}
+
+ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* 定宽容器 */
+.brix-container {
+  width: var(--brix-container);
+  margin: 0 auto;
+}
+
+/* 卡片 */
+.brix-card {
+  background: #fff;
+  border: 0.5px solid var(--brix-border);
+  border-radius: var(--brix-radius);
+}
+
+/* 区块标题 */
+.brix-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.brix-section-title__sub {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--brix-text-secondary);
+}
+
+/* 价格 */
+.brix-price {
+  color: var(--brix-price);
+  font-weight: 600;
+}
+
+.brix-price__symbol {
+  font-size: 12px;
+  margin-right: 1px;
+}
+
+.brix-price-origin {
+  margin-left: 6px;
+  color: var(--brix-text-placeholder);
+  font-size: 12px;
+  text-decoration: line-through;
+}
+
+/* 通用间距 */
+.brix-mt-8 {
+  margin-top: 8px;
+}
+
+.brix-mt-16 {
+  margin-top: 16px;
+}
+
+.brix-mt-24 {
+  margin-top: 24px;
+}
+
+.brix-mb-16 {
+  margin-bottom: 16px;
+}
+
+.brix-text-secondary {
+  color: var(--brix-text-secondary);
+}
+
+.brix-text-sm {
+  font-size: 12px;
+}
+
+.brix-flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.brix-flex-center {
+  display: flex;
+  align-items: center;
+}
+
+.brix-gap-8 {
+  gap: 8px;
+}
+
+/* 空态 */
+.brix-empty {
+  padding: 60px 0;
+  text-align: center;
+  color: var(--brix-text-secondary);
+}
+
+.brix-empty__icon {
+  font-size: 44px;
+  color: #d9dde3;
+  margin-bottom: 12px;
+}
+
+/* Element Plus 微调 */
+.el-card {
+  border-radius: var(--brix-radius);
+}
+
+.el-button--primary {
+  --el-button-bg-color: var(--brix-primary);
+  --el-button-border-color: var(--brix-primary);
+  --el-button-hover-bg-color: #12bd75;
+  --el-button-hover-border-color: #12bd75;
+}
+
+.el-tag {
+  border-radius: 4px;
+}
+
+.el-pagination {
+  justify-content: center;
+  padding: 24px 0 8px;
+}
+
+.el-table th.el-table__cell {
+  background-color: #fafbfc;
+  color: var(--brix-text-secondary);
+  font-weight: 500;
+}
+
+/* 页面淡入 */
+.brix-fade-enter-active {
+  transition: opacity 0.18s ease;
+}
+
+.brix-fade-enter-from {
+  opacity: 0;
+}

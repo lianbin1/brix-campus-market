@@ -1,0 +1,93 @@
+# ============================================================================
+# Brix Campus Market 后端配置
+# 说明：数据库账号与密码全部使用「占位符 + 默认值」，源码中不出现真实凭据。
+#   覆盖方式（任选其一）：
+#     1) 环境变量：DB_USERNAME / DB_PASSWORD / DB_HOST / DB_PORT / DB_NAME
+#     2) JVM 参数：-DDB_USERNAME=xxx -DDB_PASSWORD=xxx
+#   默认值 brix / brix123 对应 db/schema.sql 注释里的应用账号建法。
+# ============================================================================
+server:
+  port: ${SERVER_PORT:8080}
+  tomcat:
+    # 上传超限时避免连接被重置，便于返回 400 文案
+    max-swallow-size: -1
+
+spring:
+  application:
+    name: brix-campus
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    # allowPublicKeyRetrieval=true & useSSL=false：适配 MySQL 9.x 的 caching_sha2_password
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:brix_campus}?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&allowMultiQueries=true
+    username: ${DB_USERNAME:brix}
+    password: ${DB_PASSWORD:brix123}
+    druid:
+      initial-size: 5
+      min-idle: 5
+      max-active: 20
+      max-wait: 60000
+      validation-query: SELECT 1
+      test-while-idle: true
+      test-on-borrow: false
+      test-on-return: false
+      # 数据库尚未初始化时也允许应用启动（T01 验收点）
+      initialization-fail-timeout: -1
+      stat-view-servlet:
+        enabled: false
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 50MB
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+    default-property-inclusion: non_null
+  mvc:
+    throw-exception-if-no-handler-found: true
+  web:
+    resources:
+      add-mappings: true
+
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  type-aliases-package: com.brix.campus.model
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+  global-config:
+    banner: false
+    db-config:
+      id-type: auto
+      table-prefix: t_
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+# --------------------------- 业务自定义配置 ---------------------------
+brix:
+  jwt:
+    # ≥32 字符；本地演示用默认值，生产请通过 JWT_SECRET 覆盖
+    secret: ${JWT_SECRET:dev-local-brix-campus-secret-key-0123456789}
+    expire-hours: ${JWT_EXPIRE_HOURS:24}
+  upload:
+    # 相对 backend/ 工作目录；可通过 FILE_UPLOAD_DIR 覆盖
+    dir: ${FILE_UPLOAD_DIR:./uploads}
+    max-size: 5242880
+  ai:
+    # 留空即「无 Key 模式」：不创建 ChatModel，自动降级为本地规则估价（J03）
+    api-key: ${AI_API_KEY:}
+    base-url: ${AI_BASE_URL:https://api.deepseek.com/v1}
+    model: ${AI_MODEL:deepseek-chat}
+    daily-limit: ${AI_DAILY_LIMIT:20}
+    timeout-seconds: ${AI_TIMEOUT_SECONDS:10}
+  order:
+    unpaid-timeout-minutes: ${ORDER_UNPAID_TIMEOUT_MINUTES:30}
+  trade-code:
+    max-fail: ${TRADE_CODE_MAX_FAIL:5}
+
+logging:
+  level:
+    root: info
+    com.brix.campus: info
+    org.springframework.security: warn

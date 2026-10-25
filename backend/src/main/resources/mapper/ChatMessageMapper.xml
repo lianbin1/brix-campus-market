@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.brix.campus.mapper.ChatMessageMapper">
+
+    <!-- 会话列表：不建会话表，按「对方用户 ID」聚合（PRD I02） -->
+    <select id="selectConversations" resultType="com.brix.campus.model.vo.ConversationVO">
+        SELECT t.peer_id        AS peerId,
+               u.nickname       AS peerNickname,
+               u.avatar         AS peerAvatar,
+               t.last_id        AS lastMessageId,
+               m.content        AS lastContent,
+               t.last_time      AS lastTime,
+               t.unread         AS unreadCount
+          FROM (
+                SELECT peer_id,
+                       MAX(id)         AS last_id,
+                       MAX(created_at) AS last_time,
+                       SUM(CASE WHEN x.to_user_id = #{uid} AND x.is_read = 0 THEN 1 ELSE 0 END) AS unread
+                  FROM (
+                        SELECT id, created_at, to_user_id, is_read,
+                               IF(from_user_id = #{uid}, to_user_id, from_user_id) AS peer_id
+                          FROM t_chat_message
+                         WHERE from_user_id = #{uid} OR to_user_id = #{uid}
+                       ) x
+                 GROUP BY peer_id
+               ) t
+          JOIN t_user u         ON u.id = t.peer_id
+          JOIN t_chat_message m ON m.id = t.last_id
+         ORDER BY t.last_time DESC
+    </select>
+
+    <!-- 全局未读数 -->
+    <select id="countUnread" resultType="java.lang.Long">
+        SELECT COUNT(*)
+          FROM t_chat_message
+         WHERE to_user_id = #{uid}
+           AND is_read = 0
+    </select>
+
+    <!-- 打开会话即把对方发来的消息置为已读 -->
+    <update id="markRead">
+        UPDATE t_chat_message
+           SET is_read = 1
+         WHERE to_user_id = #{uid}
+           AND from_user_id = #{peerId}
+           AND is_read = 0
+    </update>
+
+    <!-- 订单维度双方消息（后台取证，只读，按时间升序） -->
+    <resultMap id="orderChatMessageMap" type="com.brix.campus.model.vo.OrderChatMessageVO">
+        <id column="id" property="id"/>
+        <result column="from_user_id" property="fromUserId"/>
+        <result column="from_nickname" property="fromNickname"/>
+        <result column="to_user_id" property="toUserId"/>
+        <result column="content" property="content"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+    <select id="selectPairMessages" resultMap="orderChatMessageMap">
+        SELECT m.id           AS id,
+               m.from_user_id AS from_user_id,
+               fu.nickname    AS from_nickname,
+               m.to_user_id   AS to_user_id,
+               m.content      AS content,
+               m.created_at   AS created_at
+          FROM t_chat_message m
+          LEFT JOIN t_user fu ON fu.id = m.from_user_id
+         WHERE ((m.from_user_id = #{userA} AND m.to_user_id = #{userB})
+             OR (m.from_user_id = #{userB} AND m.to_user_id = #{userA}))
+        <if test="itemId != null">
+            AND m.item_id = #{itemId}
+        </if>
+         ORDER BY m.created_at ASC, m.id ASC
+    </select>
+
+    <!-- 后台全平台私信检索（只读，默认时间倒序） -->
+    <resultMap id="adminChatMap" type="com.brix.campus.model.vo.AdminChatVO">
+        <id column="id" property="id"/>
+        <result column="content" property="content"/>
+        <result column="item_id" property="itemId"/>
+        <result column="item_title" property="itemTitle"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="is_read" property="isRead"/>
+        <association property="fromUser" javaType="com.brix.campus.model.vo.ChatUserVO">
+            <id column="from_id" property="id"/>
+            <result column="from_nickname" property="nickname"/>
+            <result column="from_username" property="username"/>
+        </association>
+        <association property="toUser" javaType="com.brix.campus.model.vo.ChatUserVO">
+            <id column="to_id" property="id"/>
+            <result column="to_nickname" property="nickname"/>
+            <result column="to_username" property="username"/>
+        </association>
+    </resultMap>
+
+    <select id="selectAdminPage" resultMap="adminChatMap">
+        SELECT m.id           AS id,
+               m.content      AS content,
+               m.item_id      AS item_id,
+               it.title       AS item_title,
+               m.created_at   AS created_at,
+               m.is_read      AS is_read,
+               m.from_user_id AS from_id,
+               fu.nickname    AS from_nickname,
+               fu.username    AS from_username,
+               m.to_user_id   AS to_id,
+               tu.nickname    AS to_nickname,
+               tu.username    AS to_username
+          FROM t_chat_message m
+          LEFT JOIN t_user fu ON fu.id = m.from_user_id
+          LEFT JOIN t_user tu ON tu.id = m.to_user_id
+          LEFT JOIN t_item it ON it.id = m.item_id
+        <where>
+            <if test="q.keyword != null and q.keyword != ''">
+                AND m.content LIKE CONCAT('%', #{q.keyword}, '%')
+            </if>
+            <if test="q.username != null and q.username != ''">
+                AND (fu.username LIKE CONCAT('%', #{q.username}, '%')
+                     OR fu.nickname LIKE CONCAT('%', #{q.username}, '%')
+                     OR tu.username LIKE CONCAT('%', #{q.username}, '%')
+                     OR tu.nickname LIKE CONCAT('%', #{q.username}, '%'))
+            </if>
+        </where>
+         ORDER BY m.created_at DESC, m.id DESC
+    </select>
+
+</mapper>

@@ -1,0 +1,92 @@
+package com.brix.campus.config;
+
+import com.brix.campus.ai.AiEstimator;
+import com.brix.campus.ai.AiRepository;
+import com.brix.campus.ai.AiTools;
+import com.brix.campus.ai.ItemEstimationAgent;
+import com.brix.campus.ai.LlmEstimator;
+import com.brix.campus.ai.RuleBasedEstimator;
+import com.brix.campus.service.CategoryService;
+import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.openai.OpenAiChatModel;
+import dev.langchain4j.service.AiServices;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
+
+import java.time.Duration;
+
+/**
+ * AI 条件装配（架构 6.3）：<b>有 Key 走 LLM，无 Key 走本地规则</b>。
+ *
+ * <p>不用 {@code langchain4j-spring-boot-starter}：稳定核心包 + 手工装配，功能等价、无 beta 依赖、
+ * 无 Key 时启动零报错（PRD J03）。</p>
+ *
+ * <p>关于 {@code @ConditionalOnMissingBean}：本项目的规则引擎 {@link RuleBasedEstimator} 本身实现了
+ * {@link AiEstimator}，且<b>必须同时作为 LLM 的降级目标存在</b>，因此两个 Bean 需要共存。
+ * 这里改用「{@code @ConditionalOnProperty} 控制 LLM + {@code @Primary} 指定优先级」达成完全相同的效果：
+ * <ul>
+ *   <li>无 Key：容器里只有 {@code ruleBasedEstimator} 一个 AiEstimator → 注入成功；</li>
+ *   <li>有 Key：{@code llmEstimator} 为 {@code @Primary} → 注入到 LlmEstimator，规则引擎留作降级。</li>
+ * </ul>
+ */
+@Configuration
+public class AiConfig {
+
+    private static final Logger log = LoggerFactory.getLogger(AiConfig.class);
+
+    /**
+     * 本地规则引擎：始终存在，既可在无 Key 时作为唯一实现，也可作为 LLM 超时/异常的降级目标。
+     */
+    @Bean
+    public RuleBasedEstimator ruleBasedEstimator(CategoryService categoryService, AiRepository aiRepository) {
+        return new RuleBasedEstimator(categoryService, aiRepository);
+    }
+
+    /**
+     * ChatModel：仅在配置了 {@code brix.ai.api-key} 时创建（空字符串等于未配置）。
+     */
+    @Bean
+    @ConditionalOnProperty(prefix = "brix.ai", name = "api-key")
+    public ChatModel chatModel(@Value("${brix.ai.base-url}") String baseUrl,
+                               @Value("${brix.ai.api-key}") String apiKey,
+                               @Value("${brix.ai.model}") String modelName,
+                               @Value("${brix.ai.timeout-seconds:10}") long timeoutSeconds) {
+        log.info("已启用 LLM 估价：baseUrl={}, model={}", baseUrl, modelName);
+        return OpenAiChatModel.builder()
+                .baseUrl(baseUrl)
+                .apiKey(apiKey)
+                .modelName(modelName)
+                .temperature(0.3d)
+                // J01 十秒超时；maxRetries=0 表示立即降级，不叠加延迟
+                .timeout(Duration.ofSeconds(timeoutSeconds))
+                .maxRetries(0)
+                .build();
+    }
+
+    /**
+     * AiServices 智能体：注册 3 个 {@code @Tool}，由模型按需多轮查库。
+     */
+    @Bean
+    @ConditionalOnProperty(prefix = "brix.ai", name = "api-key")
+    public ItemEstimationAgent itemEstimationAgent(ChatModel chatModel, AiTools aiTools) {
+        return AiServices.builder(ItemEstimationAgent.class)
+                .chatModel(chatModel)
+                .tools(aiTools)
+                .build();
+    }
+
+    /**
+     * LLM 估价实现：有 Key 时作为 {@code @Primary} 的首选实现。
+     */
+    @Bean
+    @Primary
+    @ConditionalOnProperty(prefix = "brix.ai", name = "api-key")
+    public AiEstimator llmEstimator(ItemEstimationAgent itemEstimationAgent) {
+        return new LlmEstimator(itemEstimationAgent);
+    }
+}
